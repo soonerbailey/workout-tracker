@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Workout tracker with analytics, progression tracking, and smart suggestions">
+  <title>Workout Tracker</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+    const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } = Recharts;
+
+    // ─── Data & Constants ────────────────────────────────────────────────
+    const MUSCLE_GROUPS = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Core", "Calves", "Cardio"];
+
+    const UNITS = ["lbs", "kg", "bw", "band", "cal", "sec"];
+
+    const DEFAULT_EXERCISES = [
+      // Chest
+      { name: "Barbell Bench Press", muscleGroup: "Chest", type: "compound" },
+      { name: "Incline DB Chest Press", muscleGroup: "Chest", type: "compound" },
+      { name: "Incline Bench Press", muscleGroup: "Chest", type: "compound" },
+      { name: "Pushups", muscleGroup: "Chest", type: "compound" },
+      { name: "Diamond Pushups", muscleGroup: "Chest", type: "compound" },
+      { name: "Weighted Dips", muscleGroup: "Chest", type: "compound" },
+      { name: "Cable Fly", muscleGroup: "Chest", type: "isolation" },
+      // Quads
+      { name: "Zercher Squat", muscleGroup: "Quads", type: "compound" },
+      { name: "Barbell Back Squat", muscleGroup: "Quads", type: "compound" },
+      { name: "Box Squat", muscleGroup: "Quads", type: "compound" },
+      { name: "Rear Foot Elevated Split Squat", muscleGroup: "Quads", type: "compound" },
+      { name: "Bulgarian Split Squat", muscleGroup: "Quads", type: "compound" },
+      { name: "Air Squat", muscleGroup: "Quads", type: "compound" },
+      { name: "Leg Press", muscleGroup: "Quads", type: "compound" },
+      { name: "Leg Extension", muscleGroup: "Quads", type: "isolation" },
+      // Hamstrings
+      { name: "Toes Elevated BB RDL", muscleGroup: "Hamstrings", type: "compound" },
+      { name: "Romanian Deadlift", muscleGroup: "Hamstrings", type: "compound" },
+      { name: "Single Leg KB RDL", muscleGroup: "Hamstrings", type: "compound" },
+      { name: "Leg Curl", muscleGroup: "Hamstrings", type: "isolation" },
+      // Back
+      { name: "Conventional Deadlift", muscleGroup: "Back", type: "compound" },
+      { name: "Raised Trap Bar Deadlift", muscleGroup: "Back", type: "compound" },
+      { name: "Chest Supported DB Row", muscleGroup: "Back", type: "compound" },
+      { name: "Barbell Row", muscleGroup: "Back", type: "compound" },
+      { name: "Pull-Up", muscleGroup: "Back", type: "compound" },
+      { name: "Neutral Grip Pull-Up", muscleGroup: "Back", type: "compound" },
+      { name: "Seated Pulldown (Dual Pulley)", muscleGroup: "Back", type: "compound" },
+      { name: "Lat Pulldown", muscleGroup: "Back", type: "compound" },
+      { name: "Cable Row", muscleGroup: "Back", type: "isolation" },
+      // Shoulders
+      { name: "Overhead Press", muscleGroup: "Shoulders", type: "compound" },
+      { name: "DB Clean + Press", muscleGroup: "Shoulders", type: "compound" },
+      { name: "Lateral Raise", muscleGroup: "Shoulders", type: "isolation" },
+      { name: "Face Pull", muscleGroup: "Shoulders", type: "isolation" },
+      { name: "Rear Delt Fly", muscleGroup: "Shoulders", type: "isolation" },
+      // Biceps
+      { name: "Barbell Curl", muscleGroup: "Biceps", type: "isolation" },
+      { name: "Dumbbell Curl", muscleGroup: "Biceps", type: "isolation" },
+      { name: "Hammer Curl", muscleGroup: "Biceps", type: "isolation" },
+      // Triceps
+      { name: "Tricep Pulldown", muscleGroup: "Triceps", type: "isolation" },
+      { name: "Skull Crushers", muscleGroup: "Triceps", type: "isolation" },
+      { name: "Overhead Tricep Extension", muscleGroup: "Triceps", type: "isolation" },
+      { name: "Close-Grip Bench Press", muscleGroup: "Triceps", type: "compound" },
+      // Glutes
+      { name: "Hip Thrust", muscleGroup: "Glutes", type: "compound" },
+      { name: "Single Leg Hip Thrust", muscleGroup: "Glutes", type: "compound" },
+      { name: "Banded Lateral Walk", muscleGroup: "Glutes", type: "isolation" },
+      // Core
+      { name: "Half Kneeling Cable Lift", muscleGroup: "Core", type: "isolation" },
+      { name: "Hollow Body Hold", muscleGroup: "Core", type: "isolation" },
+      { name: "Plank", muscleGroup: "Core", type: "isolation" },
+      { name: "Cable Crunch", muscleGroup: "Core", type: "isolation" },
+      { name: "Turkish Get Up", muscleGroup: "Core", type: "compound" },
+      // Calves
+      { name: "Calf Raise", muscleGroup: "Calves", type: "isolation" },
+      // Cardio
+      { name: "Air Bike", muscleGroup: "Cardio", type: "compound" },
+      { name: "Rower", muscleGroup: "Cardio", type: "compound" },
+      { name: "Ski Erg", muscleGroup: "Cardio", type: "compound" },
+    ];
+
+    const SAMPLE_WORKOUTS = (() => {
+      const workouts = [];
+      const today = new Date();
+      const routines = [
+        { day: "Upper A", exercises: ["Barbell Bench Press", "Incline DB Chest Press", "Overhead Press", "Chest Supported DB Row", "Barbell Curl", "Tricep Pulldown"] },
+        { day: "Lower", exercises: ["Zercher Squat", "Toes Elevated BB RDL", "Leg Press", "Leg Curl", "Single Leg Hip Thrust", "Calf Raise"] },
+        { day: "Upper B", exercises: ["Raised Trap Bar Deadlift", "Barbell Row", "Pull-Up", "Weighted Dips", "Skull Crushers", "Face Pull"] },
+      ];
+      const baseWeights = { "Barbell Bench Press": 185, "Incline DB Chest Press": 70, "Overhead Press": 125, "Chest Supported DB Row": 70, "Barbell Curl": 65, "Tricep Pulldown": 55, "Zercher Squat": 175, "Toes Elevated BB RDL": 175, "Leg Press": 270, "Leg Curl": 80, "Single Leg Hip Thrust": 35, "Calf Raise": 135, "Raised Trap Bar Deadlift": 295, "Barbell Row": 135, "Pull-Up": 0, "Weighted Dips": 0, "Skull Crushers": 25, "Face Pull": 40 };
+
+      for (let w = 0; w < 8; w++) {
+        for (let r = 0; r < 3; r++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - (8 - w) * 7 - (2 - r) * 2 - 1);
+          const routine = routines[r];
+          const entries = routine.exercises.map(name => {
+            const bw = baseWeights[name] || 50;
+            const progression = bw * (0.02 * w);
+            const weight = Math.round((bw + progression) / 5) * 5;
+            const reps = name === "Pull-Up" ? 8 + Math.floor(w / 3) : name === "Plank" ? 60 : (8 + Math.floor(Math.random() * 5));
+            return { exercise: name, unit: "lbs", sets: [{ weight, reps, note: "" }, { weight, reps: Math.max(reps - 1, 6), note: "" }, { weight: name === "Pull-Up" || name === "Weighted Dips" ? 0 : weight, reps: Math.max(reps - 2, 5), note: "" }] };
+          });
+          workouts.push({ id: `s-${w}-${r}`, date: d.toISOString().slice(0, 10), name: routine.day, entries });
+        }
+      }
+      return workouts.sort((a, b) => a.date.localeCompare(b.date));
+    })();
+
+    // ─── Utility Functions ───────────────────────────────────────────────
+    const calcE1RM = (weight, reps) => {
+      if (reps <= 0 || weight <= 0) return 0;
+      if (reps === 1) return weight;
+      return Math.round(weight * (1 + reps / 30));
+    };
+
+    const formatDate = (d) => {
+      const date = new Date(d + "T12:00:00");
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    };
+
+    const getToday = () => new Date().toISOString().slice(0, 10);
+    const uid = () => Math.random().toString(36).slice(2, 9);
+
+    // ─── Styles ──────────────────────────────────────────────────────────
+    const colors = {
+      bg: "#0f1117", card: "#1a1d27", cardHover: "#22263a", border: "#2a2e3f",
+      accent: "#6c5ce7", accentLight: "#a29bfe", accentDim: "#4a3fb5",
+      text: "#e8e8ef", textDim: "#8b8da3", textMuted: "#5a5c72",
+      success: "#00b894", warning: "#fdcb6e", danger: "#e17055",
+      chartColors: ["#6c5ce7", "#00b894", "#e17055", "#fdcb6e", "#74b9ff", "#fd79a8", "#55efc4", "#fab1a0", "#81ecec", "#dfe6e9"]
+    };
+  </script>
+
+  <script type="text/babel" src="workout-tracker.jsx"></script>
+
+  <script type="text/babel">
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
