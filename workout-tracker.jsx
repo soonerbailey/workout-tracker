@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
+const { useState, useMemo, useCallback, useEffect } = React;
+const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } = Recharts;
 
 // ─── Data & Constants ────────────────────────────────────────────────
 const MUSCLE_GROUPS = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Core", "Calves", "Cardio"];
@@ -92,7 +92,7 @@ const SAMPLE_WORKOUTS = (() => {
         const progression = bw * (0.02 * w);
         const weight = Math.round((bw + progression) / 5) * 5;
         const reps = name === "Pull-Up" ? 8 + Math.floor(w / 3) : name === "Plank" ? 60 : (8 + Math.floor(Math.random() * 5));
-        return { exercise: name, unit: "lbs", sets: [{ weight, reps, note: "" }, { weight, reps: Math.max(reps - 1, 6), note: "" }, { weight: name === "Pull-Up" || name === "Weighted Dips" ? 0 : weight, reps: Math.max(reps - 2, 5), note: "" }] };
+        return { exercise: name, sets: [{ weight, reps }, { weight, reps: Math.max(reps - 1, 6) }, { weight: name === "Pull-Up" ? 0 : weight, reps: Math.max(reps - 2, 5) }] };
       });
       workouts.push({ id: `s-${w}-${r}`, date: d.toISOString().slice(0, 10), name: routine.day, entries });
     }
@@ -153,20 +153,64 @@ function NavBar({ view, setView }) {
 
 function SetRow({ set, idx, onChange, onRemove, unit }) {
   const repLabel = unit === "sec" ? "sec" : unit === "cal" ? "cals" : "reps";
+  const showLoad = !["sec", "cal"].includes(unit);
+  const isBand = unit === "band";
+  const isBW = unit === "bw";
+
+  const loadPlaceholder = isBW ? "+" : (isBand ? "band (blue/black…)" : unit);
+
+  const loadValue = (() => {
+    if (!showLoad) return "";
+    if (isBand) return set.loadText || "";
+    if (isBW) return set.weight > 0 ? String(set.weight) : "";
+    return (set.weight ?? "") === 0 ? "" : (set.weight ?? "");
+  })();
+
+  const onLoadChange = (e) => {
+    if (!showLoad) return;
+    if (isBand) {
+      onChange({ ...set, loadText: e.target.value, weight: 0 });
+      return;
+    }
+    const v = e.target.value === "" ? 0 : +e.target.value;
+    onChange({ ...set, weight: v });
+  };
+
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <span style={{ color: colors.textMuted, fontSize: 12, width: 20, textAlign: "center" }}>{idx + 1}</span>
-        <input type="number" placeholder={unit === "bw" ? "+" : unit} value={set.weight === 0 && unit === "bw" ? "" : set.weight || ""} onChange={e => onChange({ ...set, weight: +e.target.value })}
-          style={{ flex: 1, padding: "8px 8px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.text, fontSize: 14, minWidth: 0 }} />
+
+        {showLoad ? (
+          <input
+            type={isBand ? "text" : "number"}
+            placeholder={loadPlaceholder}
+            value={loadValue}
+            onChange={onLoadChange}
+            style={{ flex: 1, padding: "8px 8px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.text, fontSize: 14, minWidth: 0 }}
+          />
+        ) : (
+          <div style={{ flex: 1 }} />
+        )}
+
         <span style={{ color: colors.textMuted, fontSize: 11 }}>×</span>
-        <input type="number" placeholder={repLabel} value={set.reps || ""} onChange={e => onChange({ ...set, reps: +e.target.value })}
-          style={{ flex: 1, padding: "8px 8px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.text, fontSize: 14, minWidth: 0 }} />
+        <input
+          type="number"
+          placeholder={repLabel}
+          value={set.reps || ""}
+          onChange={e => onChange({ ...set, reps: +e.target.value })}
+          style={{ flex: 1, padding: "8px 8px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.text, fontSize: 14, minWidth: 0 }}
+        />
         <button onClick={onRemove} style={{ background: "none", border: "none", color: colors.danger, cursor: "pointer", fontSize: 16, padding: 4 }}>×</button>
       </div>
       <div style={{ paddingLeft: 28, marginTop: 3 }}>
-        <input type="text" placeholder="Note (AMRAP, blue band, tempo…)" value={set.note || ""} onChange={e => onChange({ ...set, note: e.target.value })}
-          style={{ width: "100%", padding: "5px 8px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 5, color: colors.textDim, fontSize: 12, boxSizing: "border-box" }} />
+        <input
+          type="text"
+          placeholder="Note (AMRAP, blue band, tempo…)"
+          value={set.note || ""}
+          onChange={e => onChange({ ...set, note: e.target.value })}
+          style={{ width: "100%", padding: "5px 8px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 5, color: colors.textDim, fontSize: 12, boxSizing: "border-box" }}
+        />
       </div>
     </div>
   );
@@ -177,8 +221,8 @@ function ExerciseEntry({ entry, exercises, onUpdate, onRemove }) {
   const updateSet = (i, set) => { const s = [...entry.sets]; s[i] = set; onUpdate({ ...entry, sets: s }); };
   const removeSet = (i) => { const s = entry.sets.filter((_, j) => j !== i); onUpdate({ ...entry, sets: s }); };
   const addSet = () => {
-    const last = entry.sets[entry.sets.length - 1] || { weight: 0, reps: 8 };
-    onUpdate({ ...entry, sets: [...entry.sets, { ...last, note: "" }] });
+    const last = entry.sets[entry.sets.length - 1] || { weight: 0, reps: 8, note: "", loadText: "" };
+    onUpdate({ ...entry, sets: [...entry.sets, { ...last, id: uid(), note: "", loadText: last.loadText || "" }] });
   };
   return (
     <div style={{ background: colors.card, borderRadius: 12, padding: 16, marginBottom: 12, border: `1px solid ${colors.border}` }}>
@@ -226,19 +270,45 @@ function ExerciseEntry({ entry, exercises, onUpdate, onRemove }) {
 }
 
 function LogWorkout({ exercises, workouts, setWorkouts, setView }) {
+  const makeSet = (overrides = {}) => ({ id: uid(), weight: 0, reps: 8, note: "", loadText: "", ...overrides });
+  const makeEntry = (overrides = {}) => ({ id: uid(), exercise: "", unit: "lbs", sets: [makeSet(), makeSet(), makeSet()], ...overrides });
+
   const [name, setName] = useState("");
   const [date, setDate] = useState(getToday());
-  const [entries, setEntries] = useState([{ exercise: "", unit: "lbs", sets: [{ weight: 0, reps: 8, note: "" }, { weight: 0, reps: 8, note: "" }, { weight: 0, reps: 8, note: "" }] }]);
+  const [entries, setEntries] = useState([makeEntry()]);
 
-  const addExercise = () => setEntries([...entries, { exercise: "", unit: "lbs", sets: [{ weight: 0, reps: 8, note: "" }, { weight: 0, reps: 8, note: "" }, { weight: 0, reps: 8, note: "" }] }]);
+  const addExercise = () => setEntries([...entries, makeEntry()]);
+
+  const isSetValid = (unit, s) => {
+    if (!s || !(s.reps > 0)) return false;
+    if (["bw", "band", "cal", "sec"].includes(unit)) return true;
+    return s.weight > 0;
+  };
 
   const save = () => {
-    const valid = entries.filter(e => e.exercise && e.sets.some(s => s.weight > 0 && s.reps > 0));
-    if (!valid.length) return;
-    const workout = { id: uid(), date, name: name || "Workout", entries: valid };
+    const normalized = entries
+      .filter(e => e.exercise)
+      .map(e => ({
+        ...e,
+        unit: e.unit || "lbs",
+        sets: (e.sets || []).filter(s => isSetValid(e.unit || "lbs", s)).map(s => ({
+          id: s.id || uid(),
+          weight: Number(s.weight) || 0,
+          reps: Number(s.reps) || 0,
+          note: s.note || "",
+          loadText: s.loadText || ""
+        }))
+      }))
+      .filter(e => e.sets.length > 0);
+
+    if (!normalized.length) return;
+
+    const workout = { id: uid(), date, name: name || "Workout", entries: normalized };
     setWorkouts(prev => [...prev, workout].sort((a, b) => a.date.localeCompare(b.date)));
-    setName(""); setDate(getToday());
-    setEntries([{ exercise: "", unit: "lbs", sets: [{ weight: 0, reps: 8, note: "" }, { weight: 0, reps: 8, note: "" }, { weight: 0, reps: 8, note: "" }] }]);
+
+    setName("");
+    setDate(getToday());
+    setEntries([makeEntry()]);
     setView("history");
   };
 
@@ -246,22 +316,41 @@ function LogWorkout({ exercises, workouts, setWorkouts, setView }) {
     <div style={{ padding: 16 }}>
       <h2 style={{ color: colors.text, margin: "0 0 16px", fontSize: 22 }}>Log Workout</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <input placeholder="Workout name (e.g. Push Day)" value={name} onChange={e => setName(e.target.value)}
-          style={{ flex: 2, padding: "10px 12px", background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text, fontSize: 14 }} />
-        <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          style={{ flex: 1, padding: "10px 8px", background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text, fontSize: 14, colorScheme: "dark" }} />
+        <input
+          placeholder="Workout name (e.g. Push Day)"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          style={{ flex: 2, padding: "10px 12px", background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text, fontSize: 14 }}
+        />
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          style={{ flex: 1, padding: "10px 8px", background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text, fontSize: 14, colorScheme: "dark" }}
+        />
       </div>
+
       {entries.map((entry, i) => (
-        <ExerciseEntry key={i} entry={entry} exercises={exercises}
+        <ExerciseEntry
+          key={entry.id || i}
+          entry={entry}
+          exercises={exercises}
           onUpdate={e => { const n = [...entries]; n[i] = e; setEntries(n); }}
-          onRemove={() => setEntries(entries.filter((_, j) => j !== i))} />
+          onRemove={() => setEntries(entries.filter((_, j) => j !== i))}
+        />
       ))}
-      <button onClick={addExercise}
-        style={{ width: "100%", padding: 12, background: colors.card, border: `1px dashed ${colors.accent}`, borderRadius: 10, color: colors.accentLight, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12 }}>
+
+      <button
+        onClick={addExercise}
+        style={{ width: "100%", padding: 12, background: colors.card, border: `1px dashed ${colors.accent}`, borderRadius: 10, color: colors.accentLight, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 12 }}
+      >
         + Add Exercise
       </button>
-      <button onClick={save}
-        style={{ width: "100%", padding: 14, background: colors.accent, border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+
+      <button
+        onClick={save}
+        style={{ width: "100%", padding: 14, background: colors.accent, border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+      >
         Save Workout
       </button>
     </div>
@@ -788,6 +877,7 @@ function ExerciseManager({ exercises, setExercises }) {
 function DataPanel({ workouts, setWorkouts, exercises, setExercises }) {
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState("");
+  const [importError, setImportError] = useState("");
 
   const exportData = () => {
     const payload = { workouts, exercises };
@@ -800,15 +890,52 @@ function DataPanel({ workouts, setWorkouts, exercises, setExercises }) {
 
   const handleImport = () => {
     try {
+      setImportError("");
       const data = JSON.parse(importText);
-      if (Array.isArray(data)) {
-        setWorkouts(data.sort((a, b) => a.date.localeCompare(b.date)));
-      } else if (data && data.workouts) {
-        setWorkouts(data.workouts.sort((a, b) => a.date.localeCompare(b.date)));
-        if (data.exercises) setExercises(data.exercises);
-      }
-      setImporting(false); setImportText("");
-    } catch { /* invalid JSON */ }
+
+      const normalize = (payload) => {
+        const normalized = { workouts: [], exercises: null };
+        const rawWorkouts = Array.isArray(payload)
+          ? payload
+          : (payload && Array.isArray(payload.workouts) ? payload.workouts : null);
+
+        if (!rawWorkouts) throw new Error("Expected a JSON array of workouts, or an object with a workouts[] field.");
+
+        normalized.workouts = rawWorkouts.map(w => ({
+          id: w.id || uid(),
+          date: String(w.date || "").slice(0, 10),
+          name: w.name || "Workout",
+          entries: (w.entries || []).map(e => ({
+            id: e.id || uid(),
+            exercise: e.exercise || "",
+            unit: e.unit || "lbs",
+            sets: (e.sets || []).map(s => ({
+              id: s.id || uid(),
+              weight: Number(s.weight) || 0,
+              reps: Number(s.reps) || 0,
+              note: s.note || "",
+              loadText: s.loadText || ""
+            }))
+          }))
+        })).filter(w => /^\d{4}-\d{2}-\d{2}$/.test(w.date));
+
+        if (payload && payload.exercises && Array.isArray(payload.exercises)) {
+          normalized.exercises = payload.exercises
+            .filter(x => x && x.name)
+            .map(x => ({ name: String(x.name), muscleGroup: x.muscleGroup || "Other", type: x.type || "compound" }));
+        }
+        return normalized;
+      };
+
+      const normalized = normalize(data);
+      setWorkouts(normalized.workouts.sort((a, b) => a.date.localeCompare(b.date)));
+      if (normalized.exercises) setExercises(normalized.exercises);
+
+      setImporting(false);
+      setImportText("");
+    } catch (err) {
+      setImportError(err?.message || "Invalid JSON. Please paste a valid export.");
+    }
   };
 
   return (
@@ -833,10 +960,42 @@ function DataPanel({ workouts, setWorkouts, exercises, setExercises }) {
   );
 }
 
-export default function App() {
+// ─── Main App ────────────────────────────────────────────────────────
+function App() {
+  const STORAGE_KEY = "wt:data:v1";
   const [view, setView] = useState("suggest");
-  const [workouts, setWorkouts] = useState(SAMPLE_WORKOUTS);
-  const [exercises, setExercises] = useState(DEFAULT_EXERCISES);
+
+  const [workouts, setWorkouts] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return SAMPLE_WORKOUTS;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.workouts)) return parsed.workouts;
+      return SAMPLE_WORKOUTS;
+    } catch {
+      return SAMPLE_WORKOUTS;
+    }
+  });
+
+  const [exercises, setExercises] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return DEFAULT_EXERCISES;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.exercises)) return parsed.exercises;
+      return DEFAULT_EXERCISES;
+    } catch {
+      return DEFAULT_EXERCISES;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ workouts, exercises }));
+    } catch {
+      // ignore quota / private mode errors
+    }
+  }, [workouts, exercises]);
 
   return (
     <div style={{ minHeight: "100vh", background: colors.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column" }}>
@@ -852,3 +1011,8 @@ export default function App() {
     </div>
   );
 }
+  </script>
+
+  <script type="text/babel">
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
