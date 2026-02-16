@@ -9,22 +9,35 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-is@18/umd/react-is.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js"></script>
   <script>
-    // Diagnostic: check if libraries loaded
-    window.addEventListener('DOMContentLoaded', function() {
-      var missing = [];
-      if (!window.React) missing.push('React');
-      if (!window.ReactDOM) missing.push('ReactDOM');
-      if (!window.Babel) missing.push('Babel');
-      if (!window.Recharts) missing.push('Recharts');
-      if (missing.length > 0) {
-        document.getElementById('root').innerHTML =
-          '<div style="padding:40px;color:#e17055;font-family:sans-serif;text-align:center">' +
-          '<h2>Failed to load: ' + missing.join(', ') + '</h2>' +
-          '<p style="color:#8b8da3">Check your internet connection or try refreshing.</p></div>';
+    // Try loading Recharts from multiple CDNs
+    function loadScript(src) {
+      return new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    var rechartsSources = [
+      'https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js',
+      'https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js',
+      'https://cdn.jsdelivr.net/npm/recharts@2.5.0/umd/Recharts.min.js',
+      'https://unpkg.com/recharts@2.5.0/umd/Recharts.min.js',
+      'https://cdn.jsdelivr.net/npm/recharts/umd/Recharts.min.js',
+      'https://unpkg.com/recharts/umd/Recharts.min.js'
+    ];
+    window.__rechartsReady = (async function() {
+      for (var i = 0; i < rechartsSources.length; i++) {
+        try {
+          await loadScript(rechartsSources[i]);
+          if (window.Recharts) { console.log('Recharts loaded from: ' + rechartsSources[i]); return true; }
+        } catch(e) { console.warn('Failed: ' + rechartsSources[i]); }
       }
-    });
+      console.warn('All Recharts CDN sources failed — app will run without charts');
+      return false;
+    })();
   </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -41,7 +54,9 @@
 
   <script type="text/babel">
 const { useState, useMemo, useCallback, useEffect } = React;
-const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } = Recharts;
+const _Recharts = window.Recharts || {};
+const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } = _Recharts;
+const chartsAvailable = !!window.Recharts;
 
 // ─── Data & Constants ────────────────────────────────────────────────
 const MUSCLE_GROUPS = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Core", "Calves", "Cardio"];
@@ -572,6 +587,7 @@ function Analytics({ workouts, exercises }) {
         </select>
         {e1rmData.length > 0 ? (
           <>
+            {chartsAvailable ? (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={projection || e1rmData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
@@ -582,6 +598,15 @@ function Analytics({ workouts, exercises }) {
                 {projection && <Line type="monotone" dataKey="projected" stroke={colors.warning} strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3, fill: colors.warning }} name="Projected" connectNulls />}
               </LineChart>
             </ResponsiveContainer>
+            ) : (
+              <div style={{ padding: 16, textAlign: "center" }}>
+                {e1rmData.map((d, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, color: colors.textDim }}>
+                    <span>{d.label}</span><span style={{ color: colors.accentLight, fontWeight: 600 }}>{d.e1rm} lbs</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {projection && (
               <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12 }}>
                 <span style={{ color: colors.accent }}>● Actual</span>
@@ -604,15 +629,26 @@ function Analytics({ workouts, exercises }) {
       <div style={{ background: colors.card, borderRadius: 12, padding: 16, marginBottom: 16, border: `1px solid ${colors.border}` }}>
         <h3 style={{ color: colors.text, margin: "0 0 12px", fontSize: 16 }}>Weekly Volume by Muscle Group</h3>
         {volumeData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={volumeData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-              <XAxis dataKey="week" tick={{ fill: colors.textMuted, fontSize: 10 }} />
-              <YAxis tick={{ fill: colors.textMuted, fontSize: 11 }} />
-              <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text }} />
-              {MUSCLE_GROUPS.map((mg, i) => <Bar key={mg} dataKey={mg} stackId="vol" fill={colors.chartColors[i]} />)}
-            </BarChart>
-          </ResponsiveContainer>
+          chartsAvailable ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={volumeData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
+                <XAxis dataKey="week" tick={{ fill: colors.textMuted, fontSize: 10 }} />
+                <YAxis tick={{ fill: colors.textMuted, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text }} />
+                {MUSCLE_GROUPS.map((mg, i) => <Bar key={mg} dataKey={mg} stackId="vol" fill={colors.chartColors[i]} />)}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ padding: 16 }}>
+              {volumeData.map((d, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, color: colors.textDim }}>
+                  <span>{d.week}</span>
+                  <span style={{ color: colors.accentLight }}>{Object.entries(d).filter(([k]) => k !== "week").map(([k,v]) => `${k}: ${v}`).join(", ")}</span>
+                </div>
+              ))}
+            </div>
+          )
         ) : <p style={{ color: colors.textDim, textAlign: "center", padding: 20 }}>Not enough data yet.</p>}
       </div>
 
@@ -1055,9 +1091,11 @@ function App() {
 }
   </script>
 
-  <script type="text/babel">
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+  <script type="text/babel" data-type="module">
+window.__rechartsReady.then(() => {
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+});
   </script>
 </body>
 </html>
