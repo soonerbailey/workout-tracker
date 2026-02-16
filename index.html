@@ -1323,6 +1323,67 @@ function writeLocal(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
+// ─── Install Prompt ──────────────────────────────────────────────────
+function InstallPrompt() {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem("wt:install-dismissed") === "1"; } catch { return false; }
+  });
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+    setIsStandalone(standalone);
+
+    const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  if (dismissed || isStandalone) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem("wt:install-dismissed", "1"); } catch {}
+  };
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+      dismiss();
+    }
+  };
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  return (
+    <div style={{ margin: "12px 12px 0", padding: "14px 16px", background: colors.card, border: `1px solid ${colors.accent}44`, borderRadius: 12, display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ fontSize: 24, lineHeight: 1 }}>📲</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ color: colors.text, fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Install this app</div>
+        {isIOS ? (
+          <div style={{ color: colors.textDim, fontSize: 12, lineHeight: 1.4 }}>
+            Tap the <strong style={{ color: colors.text }}>share button</strong> (square with arrow) at the bottom of Safari, then tap <strong style={{ color: colors.text }}>"Add to Home Screen"</strong>
+          </div>
+        ) : deferredPrompt ? (
+          <button onClick={handleInstall}
+            style={{ marginTop: 4, padding: "6px 14px", background: colors.accent, border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            Add to Home Screen
+          </button>
+        ) : (
+          <div style={{ color: colors.textDim, fontSize: 12, lineHeight: 1.4 }}>
+            Open your browser menu and tap <strong style={{ color: colors.text }}>"Add to Home Screen"</strong> for the full app experience
+          </div>
+        )}
+      </div>
+      <button onClick={dismiss}
+        style={{ background: "none", border: "none", color: colors.textMuted, fontSize: 18, cursor: "pointer", padding: 4 }}>✕</button>
+    </div>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────────────
 function App() {
   const [view, setView] = useState("suggest");
@@ -1417,6 +1478,7 @@ function App() {
   return (
     <div style={{ minHeight: "100vh", background: colors.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column" }}>
       <AuthBar user={user} onSignIn={handleSignIn} onSignOut={handleSignOut} />
+      <InstallPrompt />
       {user && syncStatus && (
         <div style={{ textAlign: "center", padding: "3px 0", fontSize: 10, color: syncStatus === "synced" ? colors.success : syncStatus === "error" ? colors.danger : colors.textMuted }}>
           {syncStatus === "syncing" ? "Syncing..." : syncStatus === "synced" ? "Synced" : "Sync error"}
