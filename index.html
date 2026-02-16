@@ -129,6 +129,45 @@ const DEFAULT_EXERCISES = [
   { name: "Ski Erg", muscleGroup: "Cardio", type: "compound" },
 ];
 
+const DEFAULT_TEMPLATES = [
+  {
+    id: "tpl-upper-a",
+    name: "Upper A",
+    exercises: [
+      { exercise: "Barbell Bench Press", unit: "lbs", defaultSets: 3 },
+      { exercise: "Incline DB Chest Press", unit: "lbs", defaultSets: 3 },
+      { exercise: "Overhead Press", unit: "lbs", defaultSets: 3 },
+      { exercise: "Chest Supported DB Row", unit: "lbs", defaultSets: 3 },
+      { exercise: "Barbell Curl", unit: "lbs", defaultSets: 3 },
+      { exercise: "Tricep Pulldown", unit: "lbs", defaultSets: 3 },
+    ]
+  },
+  {
+    id: "tpl-lower",
+    name: "Lower",
+    exercises: [
+      { exercise: "Zercher Squat", unit: "lbs", defaultSets: 3 },
+      { exercise: "Toes Elevated BB RDL", unit: "lbs", defaultSets: 3 },
+      { exercise: "Leg Press", unit: "lbs", defaultSets: 3 },
+      { exercise: "Leg Curl", unit: "lbs", defaultSets: 3 },
+      { exercise: "Single Leg Hip Thrust", unit: "lbs", defaultSets: 3 },
+      { exercise: "Calf Raise", unit: "lbs", defaultSets: 3 },
+    ]
+  },
+  {
+    id: "tpl-upper-b",
+    name: "Upper B",
+    exercises: [
+      { exercise: "Raised Trap Bar Deadlift", unit: "lbs", defaultSets: 3 },
+      { exercise: "Barbell Row", unit: "lbs", defaultSets: 3 },
+      { exercise: "Pull-Up", unit: "bw", defaultSets: 3 },
+      { exercise: "Weighted Dips", unit: "bw", defaultSets: 3 },
+      { exercise: "Skull Crushers", unit: "lbs", defaultSets: 3 },
+      { exercise: "Face Pull", unit: "lbs", defaultSets: 3 },
+    ]
+  },
+];
+
 const SAMPLE_WORKOUTS = (() => {
   const workouts = [];
   const today = new Date();
@@ -326,13 +365,36 @@ function ExerciseEntry({ entry, exercises, onUpdate, onRemove }) {
   );
 }
 
-function LogWorkout({ exercises, workouts, setWorkouts, setView }) {
+function LogWorkout({ exercises, workouts, setWorkouts, setView, templates, setTemplates }) {
   const makeSet = (overrides = {}) => ({ id: uid(), weight: 0, reps: 8, note: "", loadText: "", ...overrides });
   const makeEntry = (overrides = {}) => ({ id: uid(), exercise: "", unit: "lbs", sets: [makeSet(), makeSet(), makeSet()], ...overrides });
 
   const [name, setName] = useState("");
   const [date, setDate] = useState(getToday());
   const [entries, setEntries] = useState([makeEntry()]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+
+  const loadTemplate = (tpl) => {
+    setName(tpl.name);
+    setEntries(tpl.exercises.map(e => {
+      const sets = [];
+      for (let i = 0; i < (e.defaultSets || 3); i++) sets.push(makeSet());
+      return makeEntry({ exercise: e.exercise, unit: e.unit || "lbs", sets });
+    }));
+  };
+
+  const saveAsTemplate = () => {
+    const tplName = templateName.trim() || name.trim() || "My Template";
+    const tplExercises = entries
+      .filter(e => e.exercise)
+      .map(e => ({ exercise: e.exercise, unit: e.unit || "lbs", defaultSets: e.sets.length || 3 }));
+    if (tplExercises.length === 0) return;
+    const newTpl = { id: uid(), name: tplName, exercises: tplExercises };
+    setTemplates(prev => [...prev, newTpl]);
+    setSavingTemplate(false);
+    setTemplateName("");
+  };
 
   const addExercise = () => setEntries([...entries, makeEntry()]);
 
@@ -372,6 +434,22 @@ function LogWorkout({ exercises, workouts, setWorkouts, setView }) {
   return (
     <div style={{ padding: 16 }}>
       <h2 style={{ color: colors.text, margin: "0 0 16px", fontSize: 22 }}>Log Workout</h2>
+
+      {templates.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: colors.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Templates</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {templates.map(tpl => (
+              <button key={tpl.id} onClick={() => loadTemplate(tpl)}
+                style={{ padding: "8px 16px", background: colors.card, border: `1px solid ${colors.accent}44`, borderRadius: 20, color: colors.accentLight, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all .2s" }}>
+                {tpl.name}
+                <span style={{ color: colors.textMuted, fontWeight: 400, marginLeft: 6, fontSize: 11 }}>{tpl.exercises.length} ex</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <input
           placeholder="Workout name (e.g. Push Day)"
@@ -406,19 +484,67 @@ function LogWorkout({ exercises, workouts, setWorkouts, setView }) {
 
       <button
         onClick={save}
-        style={{ width: "100%", padding: 14, background: colors.accent, border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+        style={{ width: "100%", padding: 14, background: colors.accent, border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}
       >
         Save Workout
       </button>
+
+      <button
+        onClick={() => { setSavingTemplate(true); setTemplateName(name); }}
+        style={{ width: "100%", padding: 12, background: "transparent", border: `1px solid ${colors.accent}66`, borderRadius: 10, color: colors.accentLight, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+      >
+        Save as Template
+      </button>
+
+      {savingTemplate && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+          <div style={{ background: colors.card, borderRadius: 12, padding: 20, width: "100%", maxWidth: 380, border: `1px solid ${colors.border}` }}>
+            <h3 style={{ color: colors.text, margin: "0 0 16px", fontSize: 17 }}>Save as Template</h3>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: colors.textMuted, display: "block", marginBottom: 4 }}>Template Name</label>
+              <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. Upper A"
+                style={{ width: "100%", padding: "10px 12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.text, fontSize: 14, boxSizing: "border-box" }} />
+            </div>
+            <div style={{ marginBottom: 16, fontSize: 13, color: colors.textDim }}>
+              {entries.filter(e => e.exercise).length} exercise{entries.filter(e => e.exercise).length !== 1 ? "s" : ""} will be saved:
+              <div style={{ marginTop: 6 }}>
+                {entries.filter(e => e.exercise).map((e, i) => (
+                  <div key={i} style={{ padding: "3px 0", color: colors.accentLight, fontSize: 12 }}>• {e.exercise} ({e.sets.length} sets, {e.unit})</div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={saveAsTemplate}
+                style={{ flex: 1, padding: 12, background: colors.accent, border: "none", borderRadius: 8, color: "#fff", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+                Save Template
+              </button>
+              <button onClick={() => setSavingTemplate(false)}
+                style={{ flex: 1, padding: 12, background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.textDim, fontSize: 14, cursor: "pointer" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function History({ workouts, setWorkouts, exercises }) {
+function History({ workouts, setWorkouts, exercises, templates, setTemplates }) {
   const [expanded, setExpanded] = useState(null);
   const sorted = [...workouts].reverse();
 
   const deleteWorkout = (id) => setWorkouts(prev => prev.filter(w => w.id !== id));
+
+  const saveWorkoutAsTemplate = (w) => {
+    const tplExercises = w.entries.map(e => ({
+      exercise: e.exercise,
+      unit: e.unit || "lbs",
+      defaultSets: e.sets.length || 3
+    }));
+    const newTpl = { id: uid(), name: w.name, exercises: tplExercises };
+    setTemplates(prev => [...prev, newTpl]);
+  };
 
   const bestSet = (sets) => {
     let best = { weight: 0, reps: 0 };
@@ -472,10 +598,16 @@ function History({ workouts, setWorkouts, exercises }) {
                   </div>
                 );
               })}
-              <button onClick={() => deleteWorkout(w.id)}
-                style={{ marginTop: 10, padding: "8px 16px", background: "transparent", border: `1px solid ${colors.danger}`, borderRadius: 6, color: colors.danger, fontSize: 12, cursor: "pointer" }}>
-                Delete Workout
-              </button>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button onClick={() => saveWorkoutAsTemplate(w)}
+                  style={{ padding: "8px 16px", background: "transparent", border: `1px solid ${colors.accent}66`, borderRadius: 6, color: colors.accentLight, fontSize: 12, cursor: "pointer" }}>
+                  Save as Template
+                </button>
+                <button onClick={() => deleteWorkout(w.id)}
+                  style={{ padding: "8px 16px", background: "transparent", border: `1px solid ${colors.danger}`, borderRadius: 6, color: colors.danger, fontSize: 12, cursor: "pointer" }}>
+                  Delete Workout
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -819,11 +951,21 @@ function TodaySuggestion({ workouts, exercises }) {
   );
 }
 
-function ExerciseManager({ exercises, setExercises }) {
+function ExerciseManager({ exercises, setExercises, templates, setTemplates }) {
   const [filter, setFilter] = useState("All");
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", muscleGroup: "Chest", type: "compound" });
   const [search, setSearch] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [tplForm, setTplForm] = useState({ name: "" });
+
+  const deleteTemplate = (id) => setTemplates(prev => prev.filter(t => t.id !== id));
+  const renameTemplate = () => {
+    if (!tplForm.name.trim()) return;
+    setTemplates(prev => prev.map(t => t.id === editingTemplate ? { ...t, name: tplForm.name.trim() } : t));
+    setEditingTemplate(null);
+  };
 
   const filtered = exercises.filter(e => {
     const matchGroup = filter === "All" || e.muscleGroup === filter;
@@ -866,11 +1008,60 @@ function ExerciseManager({ exercises, setExercises }) {
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 style={{ color: colors.text, margin: 0, fontSize: 22 }}>Exercises</h2>
-        <button onClick={startAdd}
-          style={{ padding: "8px 16px", background: colors.accent, border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          + Add New
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowTemplates(!showTemplates)}
+            style={{ padding: "8px 16px", background: showTemplates ? colors.accent : colors.bg, border: `1px solid ${showTemplates ? colors.accent : colors.border}`, borderRadius: 8, color: showTemplates ? "#fff" : colors.textDim, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Templates ({templates.length})
+          </button>
+          <button onClick={startAdd}
+            style={{ padding: "8px 16px", background: colors.accent, border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Add New
+          </button>
+        </div>
       </div>
+
+      {showTemplates && (
+        <div style={{ marginBottom: 16, background: colors.card, borderRadius: 12, padding: 16, border: `1px solid ${colors.border}` }}>
+          <div style={{ fontSize: 12, color: colors.accentLight, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Workout Templates</div>
+          {templates.length === 0 && <p style={{ color: colors.textDim, fontSize: 13 }}>No templates yet. Save one from the Log or History view.</p>}
+          {templates.map(tpl => (
+            <div key={tpl.id} style={{ background: colors.bg, borderRadius: 10, padding: "12px 14px", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ color: colors.text, fontSize: 14, fontWeight: 500 }}>{tpl.name}</div>
+                <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+                  {tpl.exercises.map(e => e.exercise).join(" · ")}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => { setEditingTemplate(tpl.id); setTplForm({ name: tpl.name }); }}
+                  style={{ background: "none", border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.textDim, fontSize: 12, padding: "4px 10px", cursor: "pointer" }}>Edit</button>
+                <button onClick={() => deleteTemplate(tpl.id)}
+                  style={{ background: "none", border: `1px solid ${colors.danger}44`, borderRadius: 6, color: colors.danger, fontSize: 12, padding: "4px 10px", cursor: "pointer" }}>✕</button>
+              </div>
+            </div>
+          ))}
+
+          {editingTemplate && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+              <div style={{ background: colors.card, borderRadius: 12, padding: 20, width: "100%", maxWidth: 380, border: `1px solid ${colors.border}` }}>
+                <h3 style={{ color: colors.text, margin: "0 0 16px", fontSize: 17 }}>Rename Template</h3>
+                <input value={tplForm.name} onChange={e => setTplForm({ name: e.target.value })} placeholder="Template name"
+                  style={{ width: "100%", padding: "10px 12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, color: colors.text, fontSize: 14, boxSizing: "border-box", marginBottom: 16 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={renameTemplate}
+                    style={{ flex: 1, padding: 12, background: colors.accent, border: "none", borderRadius: 8, color: "#fff", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+                    Save
+                  </button>
+                  <button onClick={() => setEditingTemplate(null)}
+                    style={{ flex: 1, padding: 12, background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.textDim, fontSize: 14, cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <input placeholder="Search exercises…" value={search} onChange={e => setSearch(e.target.value)}
         style={{ width: "100%", padding: "10px 12px", background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text, fontSize: 14, marginBottom: 12, boxSizing: "border-box" }} />
@@ -952,13 +1143,13 @@ function ExerciseManager({ exercises, setExercises }) {
   );
 }
 
-function DataPanel({ workouts, setWorkouts, exercises, setExercises }) {
+function DataPanel({ workouts, setWorkouts, exercises, setExercises, templates, setTemplates }) {
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState("");
 
   const exportData = () => {
-    const payload = { workouts, exercises };
+    const payload = { workouts, exercises, templates };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1002,12 +1193,18 @@ function DataPanel({ workouts, setWorkouts, exercises, setExercises }) {
             .filter(x => x && x.name)
             .map(x => ({ name: String(x.name), muscleGroup: x.muscleGroup || "Other", type: x.type || "compound" }));
         }
+        if (payload && payload.templates && Array.isArray(payload.templates)) {
+          normalized.templates = payload.templates
+            .filter(t => t && t.name && Array.isArray(t.exercises))
+            .map(t => ({ id: t.id || uid(), name: String(t.name), exercises: t.exercises }));
+        }
         return normalized;
       };
 
       const normalized = normalize(data);
       setWorkouts(normalized.workouts.sort((a, b) => a.date.localeCompare(b.date)));
       if (normalized.exercises) setExercises(normalized.exercises);
+      if (normalized.templates) setTemplates(normalized.templates);
 
       setImporting(false);
       setImportText("");
@@ -1067,25 +1264,37 @@ function App() {
     }
   });
 
+  const [templates, setTemplates] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return DEFAULT_TEMPLATES;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.templates)) return parsed.templates;
+      return DEFAULT_TEMPLATES;
+    } catch {
+      return DEFAULT_TEMPLATES;
+    }
+  });
+
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ workouts, exercises }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ workouts, exercises, templates }));
     } catch {
       // ignore quota / private mode errors
     }
-  }, [workouts, exercises]);
+  }, [workouts, exercises, templates]);
 
   return (
     <div style={{ minHeight: "100vh", background: colors.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 600, margin: "0 auto", display: "flex", flexDirection: "column" }}>
       <NavBar view={view} setView={setView} />
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: 60 }}>
-        {view === "log" && <LogWorkout exercises={exercises} workouts={workouts} setWorkouts={setWorkouts} setView={setView} />}
-        {view === "history" && <History workouts={workouts} setWorkouts={setWorkouts} exercises={exercises} />}
+        {view === "log" && <LogWorkout exercises={exercises} workouts={workouts} setWorkouts={setWorkouts} setView={setView} templates={templates} setTemplates={setTemplates} />}
+        {view === "history" && <History workouts={workouts} setWorkouts={setWorkouts} exercises={exercises} templates={templates} setTemplates={setTemplates} />}
         {view === "analytics" && <Analytics workouts={workouts} exercises={exercises} />}
         {view === "suggest" && <TodaySuggestion workouts={workouts} exercises={exercises} />}
-        {view === "exercises" && <ExerciseManager exercises={exercises} setExercises={setExercises} />}
+        {view === "exercises" && <ExerciseManager exercises={exercises} setExercises={setExercises} templates={templates} setTemplates={setTemplates} />}
       </div>
-      <DataPanel workouts={workouts} setWorkouts={setWorkouts} exercises={exercises} setExercises={setExercises} />
+      <DataPanel workouts={workouts} setWorkouts={setWorkouts} exercises={exercises} setExercises={setExercises} templates={templates} setTemplates={setTemplates} />
     </div>
   );
 }
