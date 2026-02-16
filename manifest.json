@@ -1,0 +1,25 @@
+{
+  "name": "Workout Tracker",
+  "short_name": "Workouts",
+  "description": "Track workouts, analyze progress, and get smart training suggestions",
+  "start_url": "/workout-tracker/",
+  "scope": "/workout-tracker/",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#2d7ff9",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

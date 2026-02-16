@@ -11,6 +11,7 @@ Thumbs.db
 # Data exports
 *.json
 !package.json
+!manifest.json
 
 # Node
 node_modules/

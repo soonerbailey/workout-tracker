@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Workout tracker with analytics, progression tracking, and smart suggestions">
+  <meta name="theme-color" content="#2d7ff9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Workouts">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>Workout Tracker</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -204,10 +210,10 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 // ─── Styles ──────────────────────────────────────────────────────────
 const colors = {
   bg: "#0f1117", card: "#1a1d27", cardHover: "#22263a", border: "#2a2e3f",
-  accent: "#6c5ce7", accentLight: "#a29bfe", accentDim: "#4a3fb5",
+  accent: "#2d7ff9", accentLight: "#74b9ff", accentDim: "#1a5fc4",
   text: "#e8e8ef", textDim: "#8b8da3", textMuted: "#5a5c72",
   success: "#00b894", warning: "#fdcb6e", danger: "#e17055",
-  chartColors: ["#6c5ce7", "#00b894", "#e17055", "#fdcb6e", "#74b9ff", "#fd79a8", "#55efc4", "#fab1a0", "#81ecec", "#dfe6e9"]
+  chartColors: ["#2d7ff9", "#00b894", "#e17055", "#fdcb6e", "#74b9ff", "#fd79a8", "#55efc4", "#fab1a0", "#81ecec", "#dfe6e9"]
 };
 
 // ─── Components ──────────────────────────────────────────────────────
@@ -1436,6 +1442,16 @@ window.__rechartsReady.then(() => {
   const root = ReactDOM.createRoot(document.getElementById('root'));
   root.render(<App />);
 });
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/workout-tracker/sw.js')
+          .then(reg => console.log('SW registered:', reg.scope))
+          .catch(err => console.warn('SW registration failed:', err));
+      });
+    }
   </script>
 </body>
 </html>
