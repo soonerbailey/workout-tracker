@@ -11,7 +11,11 @@ Thumbs.db
 # Data exports
 *.json
 !package.json
+!package-lock.json
 !manifest.json
+!firebase.json
 
-# Node
+# Node / Firebase
 node_modules/
+*-debug.log
+.firebase/

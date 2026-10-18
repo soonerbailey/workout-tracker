@@ -1,0 +1,14 @@
+{
+  "firestore": { "rules": "firestore.rules" },
+  "hosting": {
+    "public": ".",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "src/**", "test/**", "build.mjs", "package*.json", "*.archimate", "README.md", "firestore.rules"],
+    "headers": [{ "source": "sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }]
+  },
+  "emulators": {
+    "auth": { "port": 9099 },
+    "firestore": { "port": 8080 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}
