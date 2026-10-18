@@ -119,6 +119,7 @@ function AppInner() {
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
   useEffect(() => { if (data.authError) { notify(`Sign-in failed: ${data.authError}`); data.setAuthError(""); } }, [data.authError]);
 
+  const hadAccount = (() => { try { return localStorage.getItem("wt:had-account") === "1"; } catch { return false; } })();
   const handleSignIn = () => signIn().catch(err => notify(`Sign-in failed: ${err?.message || err}`));
   const handleSignOut = () => signOut();
 
@@ -135,6 +136,12 @@ function AppInner() {
       <RestAlarm timer={timer} setTimer={setTimer} />
       <main style={{ flex: 1, paddingBottom: 24 }}>
         {data.user && !data.loaded && <div style={{ padding: "8px 16px", fontSize: 12, color: colors.textMuted }}>Loading your workouts…</div>}
+        {!data.user && hadAccount && (
+          <div style={{ margin: "12px 16px 0", padding: "12px 14px", background: colors.card, border: `1px solid ${colors.warning}88`, borderRadius: 12, fontSize: 13, color: colors.textDim, lineHeight: 1.5 }}>
+            <b style={{ color: colors.warning }}>You're signed out.</b> Your synced workouts are safe in your Google account — sign in to see them. Anything you log now is saved on this device only, and you'll be offered to add it to your account when you sign in.
+            <div><button onClick={handleSignIn} style={btn("primary", { marginTop: 8, padding: "6px 14px", fontSize: 12 })}>Sign in with Google</button></div>
+          </div>
+        )}
         {view === "log" && <LogWorkout {...props} timer={timer} setTimer={setTimer} />}
         {view === "history" && <History {...props} />}
         {view === "analytics" && <Analytics data={data} />}

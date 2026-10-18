@@ -53,19 +53,31 @@ const provider = new GoogleAuthProvider();
 export const isStandalone = () =>
   (typeof matchMedia !== "undefined" && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 
-// Popups don't work reliably in an installed home-screen app, so use a full-page redirect there.
+// Use the popup everywhere, including the installed iPhone app. A full-page redirect loses
+// the sign-in result on iOS when the app isn't served from the Firebase auth domain
+// (Safari blocks the cross-site storage it relies on). Redirect is only a fallback for
+// browsers that block the popup outright.
+const REDIRECT_FLAG = "wt:redirect-signin";
 export async function signIn() {
-  if (isStandalone()) return signInWithRedirect(auth, provider);
   try {
     await signInWithPopup(auth, provider);
   } catch (e) {
     if (["auth/popup-blocked", "auth/operation-not-supported-in-environment", "auth/web-storage-unsupported"].includes(e?.code)) {
+      try { localStorage.setItem(REDIRECT_FLAG, String(Date.now())); } catch {}
       return signInWithRedirect(auth, provider);
     }
     if (e?.code === "auth/popup-closed-by-user" || e?.code === "auth/cancelled-popup-request") return;
     throw e;
   }
 }
+// True if we came back from a redirect sign-in attempt in the last 10 minutes.
+export const takeRedirectFlag = () => {
+  try {
+    const t = Number(localStorage.getItem(REDIRECT_FLAG) || 0);
+    localStorage.removeItem(REDIRECT_FLAG);
+    return t > 0 && Date.now() - t < 10 * 60 * 1000;
+  } catch { return false; }
+};
 export const completeRedirectSignIn = () => getRedirectResult(auth);
 export const signOut = () => fbSignOut(auth);
 export const onAuth = (cb) => onAuthStateChanged(auth, cb);

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, updateDoc, writeBatch,
 } from "firebase/firestore";
-import { db, onAuth, completeRedirectSignIn } from "./firebase.js";
+import { auth, db, onAuth, completeRedirectSignIn, takeRedirectFlag } from "./firebase.js";
 import { DEFAULT_EXERCISES, DEFAULT_TEMPLATES } from "./constants.js";
 import { mergeData, normalizeWorkout, renameInTemplates, renameInWorkout, sortWorkouts, buildExerciseIndex } from "./utils.js";
 
@@ -89,8 +89,19 @@ export function useAppData() {
 
   // ─── Auth ──────────────────────────────────────────────────────────
   useEffect(() => {
-    completeRedirectSignIn().catch(err => { console.error(err); setAuthError(err?.message || "Sign-in failed"); });
-    return onAuth(u => { uidRef.current = u?.uid || null; setUser(u || null); });
+    const cameFromRedirect = takeRedirectFlag();
+    completeRedirectSignIn()
+      .then(res => {
+        // A redirect that comes back with no user means the browser dropped the result — say so
+        // instead of silently showing the signed-out (device-only) view.
+        if (cameFromRedirect && !res && !auth.currentUser) setAuthError("Google sign-in didn't complete in this browser. Try again, or sign in from Safari/Chrome first.");
+      })
+      .catch(err => { console.error(err); setAuthError(err?.message || "Sign-in failed"); });
+    return onAuth(u => {
+      uidRef.current = u?.uid || null;
+      if (u) { try { localStorage.setItem("wt:had-account", "1"); } catch {} }
+      setUser(u || null);
+    });
   }, []);
 
   // ─── Live cloud listeners ─────────────────────────────────────────
