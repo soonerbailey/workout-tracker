@@ -1,0 +1,14 @@
+rules_version = '2';
+// Each signed-in user can read and write only their own data:
+//   users/{uid}                 exercises + templates
+//   users/{uid}/workouts/{id}   one document per workout
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      match /workouts/{workoutId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}
