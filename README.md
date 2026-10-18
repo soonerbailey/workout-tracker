@@ -77,6 +77,6 @@ The app needs the rules in `firestore.rules`, which allow each user to read and 
 
 ### Signing in from the installed iPhone app
 
-Inside a home-screen app the sign-in popup doesn't work, so the app uses a full-page redirect there. Safari's privacy protections can break that redirect when the app is hosted on a different domain from Firebase (e.g. GitHub Pages). If sign-in fails from the home-screen app:
-- sign in once in Safari, then add to the home screen again; or
-- host on Firebase Hosting (`npx firebase-tools deploy --only hosting`, config in `firebase.json`). The app then uses its own domain for sign-in automatically.
+The app always signs in with a Google popup, which works in the installed home-screen app. A full-page redirect is used only if a browser blocks the popup outright. Redirect sign-in loses its result on iOS when the app isn't served from the Firebase auth domain, and the app says so if that happens. Hosting on Firebase Hosting (`firebase.json` is ready) would make redirects work too.
+
+When you're signed out on a device that has used an account before, the app shows a banner. Your synced workouts aren't gone; they're in your account.
